@@ -31,31 +31,34 @@ class HHApi(InitApi):
     megafon - 3127
     avito - 84585
     """
-    def __init__(self, employer_id):
-        self.employer_id = employer_id
-        self.api_url = f"https://api.hh.ru/vacancies?employer_id={self.employer_id}"
+    def __init__(self):
+        self.employer_id = [3529, 1740, 15478, 4219, 39305, 1186, 4023, 7172, 3127, 84585]
         self.data = []
         self.vacancies = []
 
     def get_request(self):
+        """
+        Подключение к API HH по ID работодателя, запись сырых данных в список self.data
+        :return: self.data
+        """
+        for emp in self.employer_id:
 
-        for page in range(0, 10):
+            api_url = f"https://api.hh.ru/vacancies?employer_id={emp}"
 
             params = {
-                "employer_id": self.employer_id,
-                "page": page,
+                "employer_id": emp,
                 "per_page": 100
             }
 
             header = {"User-Agent": "My_App_v1.0"}
 
-            req = requests.get(self.api_url, headers=header, params=params)
+            req = requests.get(api_url, headers=header, params=params)
 
             if req.status_code != 200:
                 raise Exception(f"Ошибка в получении доступа к данным")
 
-            self.data = json.loads(req.text)["items"]
-            self.data.append(self.data)
+            data_json = json.loads(req.text)["items"]
+            self.data.append(data_json)
 
             req.close()
 
@@ -64,29 +67,26 @@ class HHApi(InitApi):
     def get_parsed_data(self):
         """
         Приведение вакансий к общему виду.
-        :return: список вакансий
+        :return: self.vacancies
         """
         for item in self.data:
             vacancy = Vacancy()
             try:
-                vacancy.title = item["name"]
-                vacancy.description = item["snippet"]["requirement"]
-                vacancy.city = item["area"]["name"]
-                vacancy.url = item["alternate_url"]
+                for i in range(0, 100):
+                    vacancy.title = item[i]["name"]
+                    vacancy.description = item[i]["snippet"]["requirement"]
+                    vacancy.city = item[i]["area"]["name"]
+                    vacancy.url = item[i]["alternate_url"]
 
-                if item["salary"]:
-                    vacancy.salary_from = item["salary"]["from"] if item["salary"]["from"] else 0
-                    vacancy.salary_to = item["salary"]["to"] if item["salary"]["to"] else 0
-                vacancy.employer = item["employer"]["name"]
-                vacancy.emp_id = item["employer"]["id"]
+                    if item[i]["salary"]:
+                        vacancy.salary_from = item[i]["salary"]["from"] if item[i]["salary"]["from"] else 0
+                        vacancy.salary_to = item[i]["salary"]["to"] if item[i]["salary"]["to"] else 0
+                    vacancy.employer = item[i]["employer"]["name"]
+                    vacancy.emp_id = item[i]["employer"]["id"]
 
-                if item["employer"]["id"] != 0:
                     self.vacancies.append(vacancy.get_json())
 
             except Exception as err:
                 print("Ошибка в данных ['item'] - ", err)
-
-
-            # vac = json.dumps(self.vacancies, indent=6, ensure_ascii=False)
 
         return self.vacancies

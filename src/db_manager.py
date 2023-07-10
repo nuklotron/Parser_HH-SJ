@@ -1,22 +1,23 @@
 import psycopg2
+from cfg.config import HOST, DATABASE, USER, PASSWORD, PORT
 
 
 class DBManager:
     """
     Класс для работы с БД, создает саму БД, таблицы, выводит необхимые данные из БД
-    Для работы необходимо изменить пароль в __init__
+    Для работы необходимо изменить данные в cfg/config.py
     """
     def __init__(self):
-        self.host = "localhost"
-        self.database = "cw5_employers_vacancies"
-        self.user = "postgres"
-        self.password = "12345"
-        self.port = "5432"
+        self.host: str = HOST
+        self.database: str = DATABASE
+        self.user: str = USER
+        self.password: str = PASSWORD
+        self.port: str = PORT
         self.conn = None
 
     def create_database(self):
         """
-        создание БД
+        Создание БД - изначально подключается к БД postgres, либо указать свою
         """
         self.conn = psycopg2.connect(host=self.host, database="postgres", user=self.user, password=self.password)
         self.conn.autocommit = True
@@ -57,7 +58,6 @@ class DBManager:
 
                 cur.execute("""CREATE TABLE employers
                                 (
-                                    emp_id int PRIMARY KEY,
                                     employer varchar(100) NOT NULL,
                                     vacancies_qty int
                                 );
@@ -82,12 +82,12 @@ class DBManager:
 
     def fill_table_employers(self):
         """
-        заполнение таблицы с работодателями из полученных данных
+        Заполнение таблицы с работодателями из полученных данных
         """
         self.conn = psycopg2.connect(host=self.host, database=self.database, user=self.user, password=self.password)
         with self.conn:
             with self.conn.cursor() as cur:
-                cur.execute("INSERT INTO employers SELECT DISTINCT emp_id, employer, (SELECT COUNT(*) FROM vacancies) FROM vacancies")
+                cur.execute("INSERT INTO employers SELECT DISTINCT employer, COUNT(vacancies.employer) FROM vacancies GROUP BY employer")
                 self.conn.commit()
         self.conn.close()
 
@@ -99,7 +99,7 @@ class DBManager:
         with self.conn:
             with self.conn.cursor() as cur:
                 cur.execute(
-                    "SELECT COUNT(emp_id) AS employers_qty, SUM(vacancies_qty) AS vacancies_qty FROM employers")
+                    "SELECT COUNT(employer) AS employers_qty, SUM(vacancies_qty) AS vacancies_qty FROM employers")
                 rows = cur.fetchall()
                 for row in rows:
                     print(f"Количество работодателей - {row[0]}")
